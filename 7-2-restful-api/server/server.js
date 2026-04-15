@@ -18,53 +18,72 @@ await connectDB(process.env.MONGO_URL);
 // api/songs (Read all songs)
 app.get("/api/songs", async (req, res) => {
   try {
-    const songs = await Song.find();
-    res.status(200).json(songs);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch songs", error: error.message });
+    const rows = await Song.find().sort({ createdAt: -1 });
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: err.message || "Failed to fetch songs" });
+  }
+});
+
+// api/songs/:id (Read one song)
+app.get("/api/songs/:id", async (req, res) => {
+  try {
+    const s = await Song.findById(req.params.id);
+    if (!s) return res.status(404).json({ message: "Song not found" });
+    res.json(s);
+  } catch (err) {
+    res.status(400).json({ message: err.message || "Invalid song id" });
   }
 });
 
 // api/songs (Insert song)
 app.post("/api/songs", async (req, res) => {
   try {
-    const newSong = await Song.create(req.body);
-    res.status(201).json(newSong);
-  } catch (error) {
-    res.status(400).json({ message: "Failed to create song", error: error.message });
+    const { title = "", artist = "", year } = req.body || {};
+
+    const created = await Song.create({
+      title: title.trim(),
+      artist: artist.trim(),
+      year
+    });
+
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(400).json({ message: err.message || "Failed to create song" });
   }
 });
 
 // /api/songs/:id (Update song)
 app.put("/api/songs/:id", async (req, res) => {
   try {
-    const updatedSong = await Song.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const updated = await Song.findByIdAndUpdate(
+      req.params.id,
+      req.body || {},
+      { new: true, runValidators: true, context: "query" }
+    );
 
-    if (!updatedSong) {
+    if (!updated) {
       return res.status(404).json({ message: "Song not found" });
     }
 
-    res.status(200).json(updatedSong);
-  } catch (error) {
-    res.status(400).json({ message: "Failed to update song", error: error.message });
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: err.message || "Failed to update song" });
   }
 });
 
 // /api/songs/:id (Delete song)
 app.delete("/api/songs/:id", async (req, res) => {
   try {
-    const deletedSong = await Song.findByIdAndDelete(req.params.id);
+    const deleted = await Song.findByIdAndDelete(req.params.id);
 
-    if (!deletedSong) {
+    if (!deleted) {
       return res.status(404).json({ message: "Song not found" });
     }
 
-    res.status(200).json({ message: "Song deleted successfully" });
-  } catch (error) {
-    res.status(400).json({ message: "Failed to delete song", error: error.message });
+    res.status(204).end();
+  } catch (err) {
+    res.status(400).json({ message: err.message || "Failed to delete song" });
   }
 });
 
